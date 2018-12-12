@@ -1,16 +1,17 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-"""Programa cliente UDP que abre un socket a un servidor."""
+
 import socket
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import time
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
 
 class Ua1Handler(ContentHandler):
     def __init__(self):
-        self.lista = []
+        self.diccionario= {}
         self.dicc_ua1xml = {'account': ['username', 'passwd'],
                         'uaserver': ['ip', 'puerto'], 'rtpaudio': ['puerto'],
                         'regproxy': ['ip', 'puerto'],
@@ -19,11 +20,15 @@ class Ua1Handler(ContentHandler):
         diccionario = {}
         if name in self.dicc_ua1xml:
             for atributo in self.dicc_ua1xml[name]:
-                diccionario[name+'_'+atributo] = attrs.get(atributo, '')
-            self.lista.append(diccionario)
+                self.diccionario[name+'_'+atributo] = attrs.get(atributo, '')
 
     def get_tags(self):
-        return self.lista
+        return self.diccionario
+
+def log(Mensaje):
+    fich.write(time.strftime('%Y%m%d%H%M%S '))
+    fich.write(Mensaje+"\r\n")
+
 
 if __name__ == "__main__":
     try:
@@ -37,6 +42,37 @@ if __name__ == "__main__":
     uHandler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
     parser.setContentHandler(uHandler)
     parser.parse(open(CONFIG))
-    lista = uHandler.get_tags()
-    for diccionarios in lista:
-        print(diccionarios)
+    CONFIGURACION = uHandler.get_tags()
+
+    SERVER_PROXY = CONFIGURACION['regproxy_ip']
+    PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
+    LOG_PATH = CONFIGURACION['log_path']
+    ADRESS = CONFIGURACION['account_username']
+    PUERTO = CONFIGURACION['uaserver_puerto']
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+        my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        my_socket.connect((SERVER_PROXY, PORT_PROXY))
+        fich = open(LOG_PATH, "a")
+        LINEA = ''
+        if METODO == 'REGISTER':
+            log("Starting...")
+            LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
+                     ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
+            my_socket.send(bytes(LINEA, 'utf-8'))
+            LINEA = LINEA.replace("\r\n", " ")
+            log(LINEA)
+            try:
+                DATA = my_socket.recv(1024)
+            except ConnectionRefusedError:
+                log("Error: No server listening at " + SERVER_PROXY +
+                    " port " + str(PORT_PROXY))
+            RECB = DATA.decode('utf-8').split()
+            if RECB[2] == '401':
+            LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
+                    ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
+                    'Authorization: Digest response="123123212312321212123' +
+                    '\r\n\r\n')
+            my_socket.send(bytes(LINEA, 'utf-8')
+            LINEA = LINEA.replace("\r\n", " ")
+            log(LINEA)
