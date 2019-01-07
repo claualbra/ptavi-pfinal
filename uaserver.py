@@ -5,6 +5,7 @@ import socketserver
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+from uaclient import Ua1Handler
 import time
 import os
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
@@ -13,22 +14,6 @@ import os
 def log(Mensaje):
     fich.write(time.strftime('%Y%m%d%H%M%S '))
     fich.write(Mensaje+"\r\n")
-
-class Ua2Handler(ContentHandler):
-    def __init__(self):
-        self.diccionario= {}
-        self.dicc_ua1xml = {'account': ['username', 'passwd'],
-                        'uaserver': ['ip', 'puerto'], 'rtpaudio': ['puerto'],
-                        'regproxy': ['ip', 'puerto'],
-                        'log': ['path'], 'audio': ['path']}
-    def startElement(self, name, attrs):
-        diccionario = {}
-        if name in self.dicc_ua1xml:
-            for atributo in self.dicc_ua1xml[name]:
-                self.diccionario[name+'_'+atributo] = attrs.get(atributo, '')
-
-    def get_tags(self):
-        return self.diccionario
 
 def rtp(ip,port):
     # aEjecutar es un string
@@ -93,7 +78,7 @@ if __name__ == "__main__":
         sys.exit("Usage: python uaserver.py config")
 
     parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
-    u2Handler = Ua2Handler() #Hace cosas dependiendo de la etiqueta
+    u2Handler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
     parser.setContentHandler(u2Handler)
     parser.parse(open(CONFIG))
     CONFIGURACION = u2Handler.get_tags()
