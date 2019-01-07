@@ -8,10 +8,7 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import time
 import json
-
-def log(Mensaje):
-    fich.write(time.strftime('%Y%m%d%H%M%S '))
-    fich.write(Mensaje+"\r\n")
+from uaclient import log
 
 class PrHandler(ContentHandler):
     def __init__(self):
@@ -64,13 +61,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
             my_socket.send(bytes(mensaje, 'utf-8'))
             mensaje = mensaje.replace("\r\n", " ")
-            log('Sent to ' + ip + ':' + str(port) + ': ' + mensaje)
+            log('Sent to ' + ip + ':' + str(port) + ': ' + mensaje, LOG_PATH)
 
             try:
                 data = my_socket.recv(1024).decode('utf-8')
             except ConnectionRefusedError:
                 log("Error: No server listening at " + SERVER_PROXY +
-                    " port " + str(PORT_PROXY))
+                    " port " + str(PORT_PROXY), LOG_PATH)
 
             return data
 
@@ -90,7 +87,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             linea = line.decode('utf-8')
             linea_recb = linea.replace("\r\n", " ")
             log('Received from ' + Ip_client + ':' +
-                Port_client + ': ' + linea_recb)
+                Port_client + ': ' + linea_recb, LOG_PATH)
             print("El cliente nos manda ", linea)
 
             line = linea.split()
@@ -106,10 +103,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
                                 'WWW Authenticate: Digest' +
                                 'nonce="898989898798989898989"\r\n\r\n')
-                self.wfile.write(bytes(linea_send, 'utf-8'))
-                print('mandamos al cliente: ', linea_send)
-                linea_send = linea_send.replace("\r\n", " ")
-                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
             elif line[0] == 'REGISTER' and len(line) == 8:
                 user = line[1].split(':')[1]
                 TimeExp = time.time() + int(line[4])
@@ -140,14 +133,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 linea_send = self.envio_destino(ip_destino, port_destino, linea)
             if not line_send:
                 error = error.replace("\r\n", " ")
-                log('Error: ' + error)
+                log('Error: ' + error, LOG_PATH)
                 self.wfile.write(bytes(error, 'utf-8'))
                 print('mandamos al cliente: ',error)
             else:
                 self.wfile.write(bytes(linea_send, 'utf-8'))
                 print('mandamos al cliente: ', linea_send)
                 linea_send = linea_send.replace("\r\n", " ")
-                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send, LOG_PATH)
             self.register2json()
 
 if __name__ == "__main__":
@@ -172,13 +165,10 @@ if __name__ == "__main__":
     LOG_PATH = CONFIGURACION['log_path']
     REGISTRO = CONFIGURACION['database_path']
 
-    fich = open(LOG_PATH, "a")
-    log("Starting...")
-
     serv = socketserver.UDPServer((IP, PORT), SIPRegisterHandler)
     print("Server " + PROXY + " listening at port " + str(PORT))
-
+    log("Starting...", LOG_PATH)
     try:
         serv.serve_forever()
     except KeyboardInterrupt:
-        log("Finishing.")
+        log("Finishing.", LOG_PATH)
