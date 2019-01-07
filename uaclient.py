@@ -6,6 +6,7 @@ import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import time
+from uaserver.py import rtp
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
 
@@ -69,6 +70,8 @@ if __name__ == "__main__":
                     'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                     'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
                     'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
+        if METODO == 'BYE':
+            LINEA = METODO + ' sip:' + OPCION + 'SIP/2.0\r\n\r\n'
 
         my_socket.send(bytes(LINEA, 'utf-8'))
         print(LINEA)
@@ -93,8 +96,19 @@ if __name__ == "__main__":
                     'Authorization: Digest response="123123212312321212123' +
                     '\r\n\r\n')
         elif RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and RECB_LIST[7] == '200':
+            IP_SERVER = RECB_LIST[7]
+            PORT_SERVER = RECB_LIST[10]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            
+            self.rtp(IP_SERVER, PORT_SERVER)
+        elif RECB_LIST[1] == '405':
+            log("Error: " + RECB)
+        elif RECB_LIST[1] == '400':
+            log("Error: " + RECB)
+        elif RECB_LIST[1] == '404':
+            log("Error: " + RECB)
+        else:
+            pass
+
         my_socket.send(bytes(LINEA, 'utf-8'))
         print(LINEA)
         LINEA = LINEA.replace("\r\n", " ")
