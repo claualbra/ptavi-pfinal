@@ -57,11 +57,29 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         for user in user_del:
             del self.dicc[user]
 
+    def envio_destino(ip, port, mensaje):
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+            my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            my_socket.connect((ip,port))
+
+            my_socket.send(bytes(mensaje, 'utf-8'))
+            mensaje = mensaje.replace("\r\n", " ")
+            log('Sent to ' + ip + ':' + str(port) + ': ' + mensaje)
+
+            try:
+                data = my_socket.recv(1024).decode('utf-8')
+            except ConnectionRefusedError:
+                log("Error: No server listening at " + SERVER_PROXY +
+                    " port " + str(PORT_PROXY))
+
+            return data
+
     def handle(self):
-        """Escribe dirección y puerto del cliente (de tupla client_address)."""
+        """Escribe dirección y puerto del cliente."""
         Ip_client = str(self.client_address[0])
         Port_client = str(self.client_address[1])
         self.json2register()
+        self.del_usuarios()
 
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -76,8 +94,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             print("El cliente nos manda ", linea)
 
             line = linea.split()
-            user = line[1].split(':')[1]
             if line[0] == 'REGISTER' and len(line) == 5:
+                user = line[1].split(':')[1]
                 if user in self.dicc.keys():
                     if line[4] == '0':
                         del self.dicc[user]
@@ -88,20 +106,46 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
                                 'WWW Authenticate: Digest' +
                                 'nonce="898989898798989898989"\r\n\r\n')
-            if line[0] == 'REGISTER' and len(line) == 8:
+                self.wfile.write(bytes(linea_send, 'utf-8'))
+                print('mandamos al cliente: ', linea_send)
+                linea_send = linea_send.replace("\r\n", " ")
+                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+            elif line[0] == 'REGISTER' and len(line) == 8:
+                user = line[1].split(':')[1]
                 TimeExp = time.time() + int(line[4])
                 now = time.time()
                 self.dicc[user] = {'ip': Ip_client, 'expires': TimeExp,
                                     'puerto': Port_client, 'registro': now}
                 linea_send = "SIP/2.0 200 OK\r\n\r\n"
-
-            self.del_usuarios()
+                self.wfile.write(bytes(linea_send, 'utf-8'))
+                print('mandamos al cliente: ', linea_send)
+                linea_send = linea_send.replace("\r\n", " ")
+                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+            elif line[0] == 'INVITE':
+                user = line[6].split('=')[1]
+                print(user)
+                print(self.dicc)
+                if user in self.dicc.keys():
+                    print('hola')
+                    server = line[1].split(':')[1]
+                    print(server)
+                    if server in self.dicc.keys():
+                        ip_destino = self.dicc[server]['ip']
+                        port_destino = self.dicc[server]['puerto']
+                        print(ip_destino)
+                        linea_send = self.envio_destino(ip_destino, port_destino, linea)
+                        self.wfile.write(bytes(linea_send, 'utf-8'))
+                        print('mandamos al cliente: ', linea_send)
+                        linea_send = linea_send.replace("\r\n", " ")
+                        log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+            elif line[0] == 'ACK':
+                linea_send = self.envio_destino(ip_destino, port_destino, linea)
+                self.wfile.write(bytes(linea_send, 'utf-8'))
+                print('mandamos al cliente: ', linea_send)
+                linea_send = linea_send.replace("\r\n", " ")
+                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+            
             self.register2json()
-
-            self.wfile.write(bytes(linea_send, 'utf-8'))
-            print('mandamos al cliente: ', linea_send)
-            linea_send = linea_send.replace("\r\n", " ")
-            log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
 
 if __name__ == "__main__":
     try:
@@ -120,6 +164,7 @@ if __name__ == "__main__":
     CONFIGURACION = pHandler.get_tags()
 
     PROXY = CONFIGURACION['server_name']
+    IP = CONFIGURACION['server_ip']
     PORT = int(CONFIGURACION['server_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
     REGISTRO = CONFIGURACION['database_path']
@@ -127,7 +172,7 @@ if __name__ == "__main__":
     fich = open(LOG_PATH, "a")
     log("Starting...")
 
-    serv = socketserver.UDPServer(('', PORT), SIPRegisterHandler)
+    serv = socketserver.UDPServer((IP, PORT), SIPRegisterHandler)
     print("Server " + PROXY + " listening at port " + str(PORT))
 
     try:
