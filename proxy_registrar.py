@@ -117,14 +117,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 self.dicc[user] = {'ip': Ip_client, 'expires': TimeExp,
                                     'puerto': Port_client, 'registro': now}
                 linea_send = "SIP/2.0 200 OK\r\n\r\n"
-                self.wfile.write(bytes(linea_send, 'utf-8'))
-                print('mandamos al cliente: ', linea_send)
-                linea_send = linea_send.replace("\r\n", " ")
-                log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
             elif line[0] == 'INVITE':
                 user = line[6].split('=')[1]
-                print(user)
-                print(self.dicc)
                 if user in self.dicc.keys():
                     print('hola')
                     server = line[1].split(':')[1]
@@ -134,17 +128,26 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         port_destino = self.dicc[server]['puerto']
                         print(ip_destino)
                         linea_send = self.envio_destino(ip_destino, port_destino, linea)
-                        self.wfile.write(bytes(linea_send, 'utf-8'))
-                        print('mandamos al cliente: ', linea_send)
-                        linea_send = linea_send.replace("\r\n", " ")
-                        log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
+                    else:
+                        error = 'SIP/2.0 404 User Not Found\r\n\r\n'
+                else:
+                    error = 'SIP/2.0 404 User Not Found\r\n\r\n'
             elif line[0] == 'ACK':
                 linea_send = self.envio_destino(ip_destino, port_destino, linea)
+            elif line[0] == 'BYE':
+                linea_send = self.envio_destino(ip_destino, port_destino, linea)
+            else:
+                linea_send = self.envio_destino(ip_destino, port_destino, linea)
+            if not line_send:
+                error = error.replace("\r\n", " ")
+                log('Error: ' + error)
+                self.wfile.write(bytes(error, 'utf-8'))
+                print('mandamos al cliente: ',error)
+            else:
                 self.wfile.write(bytes(linea_send, 'utf-8'))
                 print('mandamos al cliente: ', linea_send)
                 linea_send = linea_send.replace("\r\n", " ")
                 log('Sent to ' + Ip_client + ':' + Port_client + ': ' + linea_send)
-            
             self.register2json()
 
 if __name__ == "__main__":
