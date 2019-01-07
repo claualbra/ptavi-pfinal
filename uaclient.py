@@ -26,10 +26,11 @@ class Ua1Handler(ContentHandler):
     def get_tags(self):
         return self.diccionario
 
-def log(Mensaje):
+def log(mensaje, log_path):
+    fich = open(log_path, "a")
     fich.write(time.strftime('%Y%m%d%H%M%S '))
-    fich.write(Mensaje+"\r\n")
-
+    fich.write(mensaje+"\r\n")
+    fich.close()
 
 if __name__ == "__main__":
     try:
@@ -58,11 +59,8 @@ if __name__ == "__main__":
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         my_socket.connect((SERVER_PROXY,PORT_PROXY))
 
-        fich = open(LOG_PATH, "a")
-        LINEA = ''
-
+        log("Starting...", LOG_PATH)
         if METODO == 'REGISTER':
-            log("Starting...")
             LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
                     ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
         if METODO == 'INVITE':
@@ -76,17 +74,17 @@ if __name__ == "__main__":
         my_socket.send(bytes(LINEA, 'utf-8'))
         print(LINEA)
         LINEA = LINEA.replace("\r\n", " ")
-        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
 
         try:
             DATA = my_socket.recv(1024)
         except ConnectionRefusedError:
             log("Error: No server listening at " + SERVER_PROXY +
-                " port " + str(PORT_PROXY))
+                " port " + str(PORT_PROXY), LOG_PATH)
 
         RECB = DATA.decode('utf-8')
         MENS = RECB.replace("\r\n", " ")
-        log('Received from ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS)
+        log('Received from ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS, LOG_PATH)
 
         RECB_LIST = RECB.split()
         print(RECB_LIST)
@@ -101,16 +99,16 @@ if __name__ == "__main__":
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
             self.rtp(IP_SERVER, PORT_SERVER)
         elif RECB_LIST[1] == '405':
-            log("Error: " + RECB)
+            log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '400':
-            log("Error: " + RECB)
+            log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '404':
-            log("Error: " + RECB)
+            log("Error: " + RECB, LOG_PATH)
         else:
             pass
 
         my_socket.send(bytes(LINEA, 'utf-8'))
         print(LINEA)
         LINEA = LINEA.replace("\r\n", " ")
-        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
         fich.close()
