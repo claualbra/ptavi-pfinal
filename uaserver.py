@@ -5,15 +5,11 @@ import socketserver
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from uaclient import Ua1Handler
+from uaclient import Ua1Handler, log
 import time
 import os
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
-
-def log(Mensaje):
-    fich.write(time.strftime('%Y%m%d%H%M%S '))
-    fich.write(Mensaje+"\r\n")
 
 def rtp(ip,port):
     # aEjecutar es un string
@@ -39,7 +35,7 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             linea = line.decode('utf-8')
             linea_recb = linea.replace("\r\n", " ")
             log('Received from ' + Ip_client + ':' +
-                Port_client + ': ' + linea_recb)
+                Port_client + ': ' + linea_recb, LOG_PATH)
             print("El cliente nos manda ", linea)
 
             line = linea.split()
@@ -64,12 +60,12 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 self.wfile.write(bytes(error, 'utf-8'))
                 print('mandamos al cliente: ', error)
                 error = error.replace("\r\n", " ")
-                log('Error: ' + error)
+                log('Error: ' + error, LOG_PATH)
             else:
                 self.wfile.write(bytes(mensaje, 'utf-8'))
                 print('mandamos al cliente: ', linea_send)
                 mensaje = mensaje.replace("\r\n", " ")
-                log('Sent to ' + Ip_client + ':' + rtp_port + ': ' + mensaje)
+                log('Sent to ' + Ip_client + ':' + rtp_port + ': ' + mensaje, LOG_PATH)
 
 if __name__ == "__main__":
     try:
@@ -90,12 +86,11 @@ if __name__ == "__main__":
     AUDIO_PATH = CONFIGURACION['audio_path']
     ADRESSS = CONFIGURACION['account_username']
 
-    fich = open(LOG_PATH, "a")
-
     serv = socketserver.UDPServer((IP, PUERTO), EchoHandler)
     print('Listening...')
+    log("Starting...", LOG_PATH)
 
     try:
         serv.serve_forever()
     except KeyboardInterrupt:
-        log("Finishing.")
+        log("Finishing.", LOG_PATH)
