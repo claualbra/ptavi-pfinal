@@ -29,6 +29,7 @@ class Ua2Handler(ContentHandler):
 
     def get_tags(self):
         return self.diccionario
+
 def rtp(ip,port):
     # aEjecutar es un string
     # con lo que se ha de ejecutar en la shell
@@ -58,20 +59,32 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
             line = linea.split()
             if line[0] == 'INVITE':
-                client_ip = line[6].split(' ')[0].split('=')[1]
-                client_port = line[6].split(' ')[1]
+                client_ip = line[7]
+                rtp_port = line[10]
                 mensaje =('SIP/2.0 100 Trying\r\n\r\n' +
                         'SIP/2.0 180 Ringing\r\n\r\n' +
                         'SIP/2.0 200 OK\r\n' +
                         'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                         'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
                         'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
-            if line[0] == 'ACK':
+            elif line[0] == 'ACK':
                 self.rtp(client_ip, client_port)
-            self.wfile.write(bytes(mensaje, 'utf-8'))
-            print('mandamos al cliente: ', linea_send)
-            mensaje = mensaje.replace("\r\n", " ")
-            log('Sent to ' + Ip_client + ':' + Port_client + ': ' + mensaje)
+            elif line[0] == 'BYE':
+                mensaje = 'SIP/2.0 200 OK\r\n\r\n'
+            elif line[0] != ('REGISTER', 'INVITE', 'ACK', 'BYE'):
+                error = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
+            else:
+                error = "SIP/2.0 400 Bad Request\r\n\r\n"
+            if not mensaje:
+                self.wfile.write(bytes(error, 'utf-8'))
+                print('mandamos al cliente: ', error)
+                error = error.replace("\r\n", " ")
+                log('Error: ' + error)
+            else:
+                self.wfile.write(bytes(mensaje, 'utf-8'))
+                print('mandamos al cliente: ', linea_send)
+                mensaje = mensaje.replace("\r\n", " ")
+                log('Sent to ' + Ip_client + ':' + rtp_port + ': ' + mensaje)
 
 if __name__ == "__main__":
     try:
@@ -90,6 +103,7 @@ if __name__ == "__main__":
     PUERTO = int(CONFIGURACION['uaserver_puerto'])
     IP = CONFIGURACION['uaserver_ip']
     AUDIO_PATH = CONFIGURACION['audio_path']
+    ADRESSS = CONFIGURACION['account_username']
 
     fich = open(LOG_PATH, "a")
 
