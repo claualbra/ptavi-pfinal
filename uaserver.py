@@ -1,15 +1,20 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import socket
+import socketserver
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import time
+import os
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
 
-class Ua1Handler(ContentHandler):
+def log(Mensaje):
+    fich.write(time.strftime('%Y%m%d%H%M%S '))
+    fich.write(Mensaje+"\r\n")
+
+class Ua2Handler(ContentHandler):
     def __init__(self):
         self.diccionario= {}
         self.dicc_ua1xml = {'account': ['username', 'passwd'],
@@ -24,67 +29,74 @@ class Ua1Handler(ContentHandler):
 
     def get_tags(self):
         return self.diccionario
+def rtp(ip,port):
+    # aEjecutar es un string
+    # con lo que se ha de ejecutar en la shell
+    aEjecutar = 'mp32rtp -i ' ip ' -p ' port '<' + AUDIO_PATH
+    print("Vamos a ejecutar", aEjecutar)
+    os.system(aEjecutar)
 
-def log(Mensaje):
-    fich.write(time.strftime('%Y%m%d%H%M%S '))
-    fich.write(Mensaje+"\r\n")
+class EchoHandler(socketserver.DatagramRequestHandler):
+    """Echo server class."""
 
+    def handle(self):
+        """Escribe dirección y puerto del cliente."""
+        Ip_client = str(self.client_address[0])
+        Port_client = str(self.client_address[1])
+
+        while 1:
+            # Leyendo línea a línea lo que nos envía el cliente
+            line = self.rfile.read()
+            # Si no hay más líneas salimos del bucle infinito
+            if not line:
+                break
+            linea = line.decode('utf-8')
+            linea_recb = linea.replace("\r\n", " ")
+            log('Received from ' + Ip_client + ':' +
+                Port_client + ': ' + linea_recb)
+            print("El cliente nos manda ", linea)
+
+            line = linea.split()
+            if line[0] == 'INVITE':
+                client_ip = line[6].split(' ')[0].split('=')[1]
+                client_port = line[6].split(' ')[1]
+                mensaje =('SIP/2.0 100 Trying\r\n\r\n' +
+                        'SIP/2.0 180 Ringing\r\n\r\n' +
+                        'SIP/2.0 200 OK\r\n' +
+                        'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
+                        'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
+                        'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
+            if line[0] == 'ACK':
+                self.rtp(client_ip, client_port)
+            self.wfile.write(bytes(mensaje, 'utf-8'))
+            print('mandamos al cliente: ', linea_send)
+            mensaje = mensaje.replace("\r\n", " ")
+            log('Sent to ' + Ip_client + ':' + Port_client + ': ' + mensaje)
 
 if __name__ == "__main__":
     try:
         CONFIG = sys.argv[1]
-        METODO = sys.argv[2]
-        OPCION = sys.argv[3]
     except IndexError:
-        sys.exit("Usage: python uaclient.py config method option")
+        sys.exit("Usage: python uaserver.py config")
 
     parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
-    uHandler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
-    parser.setContentHandler(uHandler)
+    u2Handler = Ua2Handler() #Hace cosas dependiendo de la etiqueta
+    parser.setContentHandler(u2Handler)
     parser.parse(open(CONFIG))
-    CONFIGURACION = uHandler.get_tags()
+    CONFIGURACION = u2Handler.get_tags()
 
-    SERVER_PROXY = CONFIGURACION['regproxy_ip']
-    PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
+    PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
-    ADRESS = CONFIGURACION['account_username']
-    PUERTO = CONFIGURACION['uaserver_puerto']
-
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    my_socket.connect((SERVER_PROXY, PORT_PROXY))
+    PUERTO = int(CONFIGURACION['uaserver_puerto'])
+    IP = CONFIGURACION['uaserver_ip']
+    AUDIO_PATH = CONFIGURACION['audio_path']
 
     fich = open(LOG_PATH, "a")
-    log("Starting...")
-    LINEA = ''
 
-    if METODO == 'REGISTER':
-        LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
-
-    my_socket.send(bytes(LINEA, 'utf-8'))
-    print(LINEA)
-    LINEA = LINEA.replace("\r\n", " ")
-    log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+    serv = socketserver.UDPServer((IP, PUERTO), EchoHandler)
+    print('Listening...')
 
     try:
-        DATA = my_socket.recv(1024)
-    except ConnectionRefusedError:
-        log("Error: No server listening at " + SERVER_PROXY +
-            " port " + str(PORT_PROXY))
-
-    RECB = DATA.decode('utf-8')
-    MENS = RECB.replace("\r\n", " ")
-    log('Received from ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS)
-
-    RECB_LIST = RECB.split()
-    print(RECB)
-    if RECB_LIST[1] == '401':
-        LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
-                'Authorization: Digest response="123123212312321212123' +
-                '\r\n\r\n')
-        my_socket.send(bytes(LINEA, 'utf-8'))
-        print(LINEA)
-        LINEA = LINEA.replace("\r\n", " ")
-        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+        serv.serve_forever()
+    except KeyboardInterrupt:
+        log("Finishing.")

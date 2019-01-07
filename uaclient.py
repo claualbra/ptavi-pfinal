@@ -46,45 +46,57 @@ if __name__ == "__main__":
 
     SERVER_PROXY = CONFIGURACION['regproxy_ip']
     PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
+    PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
     ADRESS = CONFIGURACION['account_username']
     PUERTO = CONFIGURACION['uaserver_puerto']
+    IP = CONFIGURACION['uaserver_ip']
 
-    my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    my_socket.connect((SERVER_PROXY, PORT_PROXY))
+    # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto.
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
+        my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        my_socket.connect((SERVER_PROXY,PORT_PROXY))
 
-    fich = open(LOG_PATH, "a")
-    log("Starting...")
-    LINEA = ''
+        fich = open(LOG_PATH, "a")
+        LINEA = ''
 
-    if METODO == 'REGISTER':
-        LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
+        if METODO == 'REGISTER':
+            log("Starting...")
+            LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
+                    ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
+        if METODO == 'INVITE':
+            LINEA = (METODO + ' sip:' + OPCION + ' SIP/2.0\r\n' +
+                    'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
+                    'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
+                    'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
 
-    my_socket.send(bytes(LINEA, 'utf-8'))
-    print(LINEA)
-    LINEA = LINEA.replace("\r\n", " ")
-    log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
-
-    try:
-        DATA = my_socket.recv(1024)
-    except ConnectionRefusedError:
-        log("Error: No server listening at " + SERVER_PROXY +
-            " port " + str(PORT_PROXY))
-
-    RECB = DATA.decode('utf-8')
-    MENS = RECB.replace("\r\n", " ")
-    log('Received from ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS)
-
-    RECB_LIST = RECB.split()
-    print(RECB)
-    if RECB_LIST[1] == '401':
-        LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
-                'Authorization: Digest response="123123212312321212123' +
-                '\r\n\r\n')
         my_socket.send(bytes(LINEA, 'utf-8'))
         print(LINEA)
         LINEA = LINEA.replace("\r\n", " ")
         log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+
+        try:
+            DATA = my_socket.recv(1024)
+        except ConnectionRefusedError:
+            log("Error: No server listening at " + SERVER_PROXY +
+                " port " + str(PORT_PROXY))
+
+        RECB = DATA.decode('utf-8')
+        MENS = RECB.replace("\r\n", " ")
+        log('Received from ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS)
+
+        RECB_LIST = RECB.split()
+        print(RECB_LIST)
+        if RECB_LIST[1] == '401':
+            LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
+                    ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
+                    'Authorization: Digest response="123123212312321212123' +
+                    '\r\n\r\n')
+        elif RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and RECB_LIST[7] == '200':
+            LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
+            
+        my_socket.send(bytes(LINEA, 'utf-8'))
+        print(LINEA)
+        LINEA = LINEA.replace("\r\n", " ")
+        log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA)
+        fich.close()
