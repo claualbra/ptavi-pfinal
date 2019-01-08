@@ -1,13 +1,11 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import socketserver
-import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-from uaclient import Ua1Handler, log
-import time
-import os
+from uaclient import Ua1Handler, log, rtp
+import sys
+import socketserver
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
 
@@ -50,14 +48,15 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 log_mensaje = mensaje.replace("\r\n", " ")
                 log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + log_mensaje, LOG_PATH)
             elif line[0] == 'ACK':
-                self.rtp(client_ip, client_port)
+                mensaje = rtp(self.rtp[0], self.rtp[1], AUDIO_PATH)
+                log('Sent to ' + self.rtp[0] + ':' + str(self.rtp[1]) + ': ' + mensaje, LOG_PATH)
             elif line[0] == 'BYE':
                 mensaje = 'SIP/2.0 200 OK\r\n\r\n'
             elif line[0] != ('REGISTER', 'INVITE', 'ACK', 'BYE'):
                 error = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
             else:
                 error = "SIP/2.0 400 Bad Request\r\n\r\n"
-                
+
             self.wfile.write(bytes(mensaje, 'utf-8'))
             print('mandamos al cliente:\r\n', mensaje)
 
