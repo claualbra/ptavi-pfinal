@@ -8,6 +8,7 @@ from xml.sax.handler import ContentHandler
 import time
 from uaserver import rtp
 import hashlib
+import os
 # Constantes. Dirección IP del servidor, puerto, clase de petcion,
 # direccion y tiemp de expiracion
 
@@ -39,6 +40,13 @@ def password(passwd, nonce):
     m.update(bytes(nonce, 'utf-8'))
     return m.hexdigest()
 
+def rtp(ip,port, audio):
+    # aEjecutar es un string
+    # con lo que se ha de ejecutar en la shell
+    aEjecutar = 'mp32rtp -i ' + ip  + ' -p ' + port + '<' + audio
+    os.system(aEjecutar)
+    return aEjecutar
+
 if __name__ == "__main__":
     try:
         CONFIG = sys.argv[1]
@@ -64,6 +72,7 @@ if __name__ == "__main__":
     PASSWD = CONFIGURACION['account_passwd']
     IP = CONFIGURACION['uaserver_ip']
     PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
+    AUDIO_PATH = CONFIGURACION['audio_path']
 
     # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
@@ -119,13 +128,15 @@ if __name__ == "__main__":
             MENS = RECB.replace("\r\n", " ")
             log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS, LOG_PATH)
         elif RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and RECB_LIST[7] == '200':
-            IP_SERVER = RECB_LIST[7]
-            PORT_SERVER = RECB_LIST[10]
+            IP_SERVER = RECB_LIST[13]
+            PORT_RTP = RECB_LIST[17]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            self.rtp(IP_SERVER, PORT_SERVER)
-            y_socket.send(bytes(LINEA, 'utf-8'))
+            my_socket.send(bytes(LINEA, 'utf-8'))
+            print('Enviamos al Proxy:\r\n', LINEA)
             LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            LINEA = rtp(IP_SERVER, PORT_RTP, AUDIO_PATH)
+            log('Sent to ' + IP_SERVER + ':' + PORT_RTP + ': ' + LINEA, LOG_PATH)
         elif RECB_LIST[1] == '405':
             log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '400':
