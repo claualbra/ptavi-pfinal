@@ -62,6 +62,9 @@ if __name__ == "__main__":
     ADRESS = CONFIGURACION['account_username']
     PUERTO = CONFIGURACION['uaserver_puerto']
     PASSWD = CONFIGURACION['account_passwd']
+    IP = CONFIGURACION['uaserver_ip']
+    PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
+
     # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto.
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -83,16 +86,10 @@ if __name__ == "__main__":
         else:
             ERROR = "SIP/2.0 400 Bad Request\r\n\r\n"
 
-        if not LINEA
-            self.wfile.write(bytes(error, 'utf-8'))
-            print('mandamos al cliente: ', error)
-            ERROR = ERROR.replace("\r\n", " ")
-            log('Error: ' + error, LOG_PATH)
-        else:
-            self.wfile.write(bytes(LINEA, 'utf-8'))
-            print('mandamos al Proxy: ', LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+        self.wfile.write(bytes(LINEA, 'utf-8'))
+        print('mandamos al Proxy: ', LINEA)
+        LINEA = LINEA.replace("\r\n", " ")
+        log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
 
         try:
             DATA = my_socket.recv(1024)
@@ -126,17 +123,14 @@ if __name__ == "__main__":
             PORT_SERVER = RECB_LIST[10]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
             self.rtp(IP_SERVER, PORT_SERVER)
+            y_socket.send(bytes(LINEA, 'utf-8'))
+            LINEA = LINEA.replace("\r\n", " ")
+            log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
         elif RECB_LIST[1] == '405':
             log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '400':
             log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '404':
             log("Error: " + RECB, LOG_PATH)
-        else RECB_LIST[1] == '200':
-            LINEA = 'Finishing.'
 
-        if LINE:
-            my_socket.send(bytes(LINEA, 'utf-8'))
-            print(LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + SERVER_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+        log('Finishing.', LOG_PATH)
