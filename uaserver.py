@@ -6,18 +6,10 @@ from xml.sax.handler import ContentHandler
 from uaclient import Ua1Handler, log, rtp
 import sys
 import socketserver
-# Constantes. Dirección IP del servidor, puerto, clase de petcion,
-# direccion y tiemp de expiracion
-
-def rtp(ip,port):
-    # aEjecutar es un string
-    # con lo que se ha de ejecutar en la shell
-    aEjecutar = 'mp32rtp -i ' ip ' -p ' port '<' + AUDIO_PATH
-    print("Vamos a ejecutar", aEjecutar)
-    os.system(aEjecutar)
 
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
+    rtp = []
 
     def handle(self):
         """Escribe dirección y puerto del cliente."""
@@ -37,8 +29,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
             line = linea.split()
             if line[0] == 'INVITE':
-                client_ip = line[7]
-                rtp_port = line[10]
+                self.rtp.append(line[7])
+                self.rtp.append(line[10])
                 mensaje =('SIP/2.0 100 Trying\r\n\r\n' +
                         'SIP/2.0 180 Ringing\r\n\r\n' +
                         'SIP/2.0 200 OK\r\n' +
@@ -52,10 +44,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 log('Sent to ' + self.rtp[0] + ':' + str(self.rtp[1]) + ': ' + mensaje, LOG_PATH)
             elif line[0] == 'BYE':
                 mensaje = 'SIP/2.0 200 OK\r\n\r\n'
-            elif line[0] != ('REGISTER', 'INVITE', 'ACK', 'BYE'):
-                error = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
-            else:
-                error = "SIP/2.0 400 Bad Request\r\n\r\n"
+                log_mensaje = mensaje.replace("\r\n", " ")
+                log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + log_mensaje, LOG_PATH)
 
             self.wfile.write(bytes(mensaje, 'utf-8'))
             print('mandamos al cliente:\r\n', mensaje)
@@ -82,11 +72,11 @@ if __name__ == "__main__":
     PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
     ADRESS = CONFIGURACION['account_username']
     PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
+    AUDIO_PATH = CONFIGURACION['audio_path']
 
     serv = socketserver.UDPServer((IP, PUERTO), EchoHandler)
     print('Listening...')
     log("Starting...", LOG_PATH)
-
     try:
         serv.serve_forever()
     except KeyboardInterrupt:
