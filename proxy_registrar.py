@@ -110,10 +110,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                             linea_send = "SIP/2.0 200 OK\r\n\r\n"
                     else:
                         self.nonce[user] = str(random.randint(0, 100000000))
-                        print(self.nonce[user])
                         linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
                                     'WWW Authenticate: Digest ' +
                                     'nonce="' + self.nonce[user] + '"\r\n\r\n')
+                else:
+                    linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
+                    linea_send = linea_send.replace("\r\n", " ")
+                    log('Error: ' + linea_send, LOG_PATH)
             elif line[0] == 'REGISTER' and len(line) == 8:
                 user = line[1].split(':')[1]
                 pw = self.dicc_passw[user]['passwd']
