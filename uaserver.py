@@ -24,7 +24,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     def handle(self):
         """Escribe dirección y puerto del cliente."""
         Ip_client = str(self.client_address[0])
-        Port_client = str(self.client_address[1])
 
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -34,8 +33,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 break
             linea = line.decode('utf-8')
             linea_recb = linea.replace("\r\n", " ")
-            log('Received from ' + Ip_client + ':' +
-                Port_client + ': ' + linea_recb, LOG_PATH)
+            log('Received from ' + IP_PROXY + ':' +
+                str(PORT_PROXY) + ': ' + linea_recb, LOG_PATH)
             print("El cliente nos manda ", linea)
 
             line = linea.split()
@@ -48,6 +47,8 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                         'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
                         'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
+                log_mensaje = mensaje.replace("\r\n", " ")
+                log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + log_mensaje, LOG_PATH)
             elif line[0] == 'ACK':
                 self.rtp(client_ip, client_port)
             elif line[0] == 'BYE':
@@ -56,16 +57,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                 error = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
             else:
                 error = "SIP/2.0 400 Bad Request\r\n\r\n"
-            if not mensaje:
-                self.wfile.write(bytes(error, 'utf-8'))
-                print('mandamos al cliente: ', error)
-                error = error.replace("\r\n", " ")
-                log('Error: ' + error, LOG_PATH)
-            else:
-                self.wfile.write(bytes(mensaje, 'utf-8'))
-                print('mandamos al cliente: ', linea_send)
-                mensaje = mensaje.replace("\r\n", " ")
-                log('Sent to ' + Ip_client + ':' + rtp_port + ': ' + mensaje, LOG_PATH)
+                
+            self.wfile.write(bytes(mensaje, 'utf-8'))
+            print('mandamos al cliente:\r\n', mensaje)
 
 if __name__ == "__main__":
     try:
@@ -76,15 +70,19 @@ if __name__ == "__main__":
     parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
     u2Handler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
     parser.setContentHandler(u2Handler)
-    parser.parse(open(CONFIG))
+    try:
+        parser.parse(open(CONFIG))
+    except FileNotFoundError:
+        sys.exit("Usage: python proxy_registrar.py config")
     CONFIGURACION = u2Handler.get_tags()
 
-    PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
     PUERTO = int(CONFIGURACION['uaserver_puerto'])
     IP = CONFIGURACION['uaserver_ip']
-    AUDIO_PATH = CONFIGURACION['audio_path']
-    ADRESSS = CONFIGURACION['account_username']
+    IP_PROXY = CONFIGURACION['regproxy_ip']
+    PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
+    ADRESS = CONFIGURACION['account_username']
+    PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
 
     serv = socketserver.UDPServer((IP, PUERTO), EchoHandler)
     print('Listening...')
