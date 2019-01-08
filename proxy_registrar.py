@@ -1,15 +1,16 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
-import socketserver
-import socket
 import sys
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
+import socketserver
 import time
 import json
 from uaclient import log, password
 import random
+import socket
+
 
 class PrHandler(ContentHandler):
     def __init__(self):
@@ -63,7 +64,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         for user in user_del:
             del self.dicc_register[user]
 
-    def envio_destino(ip, port, mensaje):
+    def envio_destino(self, ip, port, mensaje):
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             my_socket.connect((ip,port))
@@ -78,6 +79,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 log("Error: No server listening at " + SERVER_PROXY +
                     " port " + str(PORT_PROXY), LOG_PATH)
             return data
+
     def handle(self):
         """Escribe dirección y puerto del cliente."""
         Ip_client = str(self.client_address[0])
@@ -92,13 +94,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             if not line:
                 break
             linea = line.decode('utf-8')
-            linea_recb = linea.replace("\r\n", " ")
-            log('Received from ' + Ip_client + ':' +
-                Port_client + ': ' + linea_recb, LOG_PATH)
             print("El cliente nos manda\r\n", linea)
             line = linea.split()
             if line[0] == 'REGISTER' and len(line) == 5:
                 user = line[1].split(':')[1]
+                port = line[1].split(':')[2]
+                linea_recb = linea.replace("\r\n", " ")
+                log('Received from ' + Ip_client + ':' +
+                    port + ': ' + linea_recb, LOG_PATH)
                 if user in self.dicc_passw.keys():
                     if user in self.dicc_register.keys():
                         if line[4] == '0':
@@ -111,22 +114,29 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
                                     'WWW Authenticate: Digest ' +
                                     'nonce="' + self.nonce[user] + '"\r\n\r\n')
+                    log_send = linea_send.replace("\r\n", " ")
+                    log('Sent to ' + Ip_client + ':' + port + ': ' + log_send, LOG_PATH)
                 else:
                     linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
-                    linea_send = linea_send.replace("\r\n", " ")
-                    log('Error: ' + linea_send, LOG_PATH)
+                    log_send = linea_send.replace("\r\n", " ")
+                    log('Error: ' + log_send, LOG_PATH)
             elif line[0] == 'REGISTER' and len(line) == 8:
                 user = line[1].split(':')[1]
+                port = line[1].split(':')[2]
+                linea_recb = linea.replace("\r\n", " ")
+                log('Received from ' + Ip_client + ':' +
+                    port + ': ' + linea_recb, LOG_PATH)
                 pw = self.dicc_passw[user]['passwd']
                 nonce = password(pw, self.nonce[user])
                 nonce_recv = line[7].split('"')[1]
                 if nonce == nonce_recv:
                     TimeExp = time.time() + int(line[4])
                     now = time.time()
-                    Port_client = line[1].split(':')[1]
                     self.dicc_register[user] = {'ip': Ip_client, 'expires': TimeExp,
-                                        'puerto': Port_client, 'registro': now}
+                                        'puerto': port, 'registro': now}
                     linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                    log_send = linea_send.replace("\r\n", " ")
+                    log('Sent to ' + Ip_client + ':' + port + ': ' + log_send, LOG_PATH)
             elif line[0] == 'INVITE':
                 user = line[6].split('=')[1]
                 port = self.dicc_register[user]['puerto']
@@ -152,11 +162,16 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                     log_send = linea_send.replace("\r\n", " ")
                     log('Error: ' + log_send, LOG_PATH)
             elif line[0] == 'ACK':
+                server = line[1].split(':')[1]
+                ip_destino = self.dicc_register[server]['ip']
+                port_destino = int(self.dicc_register[server]['puerto'])
                 linea_send = self.envio_destino(ip_destino, port_destino, linea)
             elif line[0] == 'BYE':
+                server = line[1].split(':')[1]
+                ip_destino = self.dicc_register[server]['ip']
+                port_destino = int(self.dicc_register[server]['puerto'])
                 linea_send = self.envio_destino(ip_destino, port_destino, linea)
-            else:
-                linea_send = self.envio_destino(ip_destino, port_destino, linea)
+
             self.wfile.write(bytes(linea_send, 'utf-8'))
             print('mandamos al cliente: ', linea_send)
             self.register2json()
@@ -166,7 +181,6 @@ if __name__ == "__main__":
         CONFIG = sys.argv[1]
     except (IndexError, ValueError):
         sys.exit("Usage: python proxy_registrar.py config")
-
 
     parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
     pHandler = PrHandler() #Hace cosas dependiendo de la etiqueta
@@ -184,8 +198,8 @@ if __name__ == "__main__":
     REGISTRO = CONFIGURACION['database_path']
     CONTRASEÑA = CONFIGURACION['database_passwdpath']
 
-    serv = socketserver.UDPServer((IP, PORT), SIPRegisterHandler)
-    print("Server " + PROXY + " listening at port " + str(PORT))
+    serv = socketserver.UDPServer((IP, PORT_SERVER), SIPRegisterHandler)
+    print("Server " + PROXY + " listening at port " + str(PORT_SERVER))
     log("Starting...", LOG_PATH)
     try:
         serv.serve_forever()
