@@ -8,7 +8,8 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 import time
 import json
-from uaclient import log
+from uaclient import log, password
+import random
 
 class PrHandler(ContentHandler):
     def __init__(self):
@@ -25,15 +26,23 @@ class PrHandler(ContentHandler):
         return self.diccionario
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
-    """Inicializo el diccionario de usuarios."""
+    dicc_register = {}
+    dicc_passw = {}
+    nonce = {}
 
-    dicc = {}
+    def json2password(self):
+        """Descargo fichero json en el diccionario."""
+        try:
+            with open(CONTRASEÑA, 'r') as jsonfile:
+                self.dicc_passw = json.load(jsonfile)
+        except:
+            pass
 
     def json2register(self):
         """Descargo fichero json en el diccionario."""
         try:
             with open(REGISTRO, 'r') as jsonfile:
-                self.dicc = json.load(jsonfile)
+                self.dicc_register = json.load(jsonfile)
         except:
             pass
 
@@ -44,7 +53,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         En formato json en elfichero registered.json.
         """
         with open(REGISTRO, 'w') as jsonfile:
-            json.dump(self.dicc, jsonfile, indent=4)
+            json.dump(self.dicc_register, jsonfile, indent=4)
 
     def del_usuarios(self):
         user_del = []
@@ -76,7 +85,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         Ip_client = str(self.client_address[0])
         Port_client = str(self.client_address[1])
         self.json2register()
-        self.del_usuarios()
+        self.json2password()
 
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -88,28 +97,34 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             linea_recb = linea.replace("\r\n", " ")
             log('Received from ' + Ip_client + ':' +
                 Port_client + ': ' + linea_recb, LOG_PATH)
-            print("El cliente nos manda ", linea)
-
+            print("El cliente nos manda\r\n", linea)
             line = linea.split()
             if line[0] == 'REGISTER' and len(line) == 5:
                 user = line[1].split(':')[1]
-                if user in self.dicc.keys():
-                    if line[4] == '0':
-                        del self.dicc[user]
-                        linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                if user in self.dicc_passw.keys():
+                    if user in self.dicc_register.keys():
+                        if line[4] == '0':
+                            del self.dicc_register[user]
+                            linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                        else:
+                            linea_send = "SIP/2.0 200 OK\r\n\r\n"
                     else:
-                        linea_send = "SIP/2.0 200 OK\r\n\r\n"
-                else:
-                    linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
-                                'WWW Authenticate: Digest' +
-                                'nonce="898989898798989898989"\r\n\r\n')
+                        self.nonce[user] = str(random.randint(0, 100000000))
+                        print(self.nonce[user])
+                        linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
+                                    'WWW Authenticate: Digest ' +
+                                    'nonce="' + self.nonce[user] + '"\r\n\r\n')
             elif line[0] == 'REGISTER' and len(line) == 8:
                 user = line[1].split(':')[1]
-                TimeExp = time.time() + int(line[4])
-                now = time.time()
-                self.dicc[user] = {'ip': Ip_client, 'expires': TimeExp,
-                                    'puerto': Port_client, 'registro': now}
-                linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                pw = self.dicc_passw[user]['passwd']
+                nonce = password(pw, self.nonce[user])
+                nonce_recv = line[7].split('"')[1]
+                if nonce == nonce_recv:
+                    TimeExp = time.time() + int(line[4])
+                    now = time.time()
+                    self.dicc_register[user] = {'ip': Ip_client, 'expires': TimeExp,
+                                        'puerto': Port_client, 'registro': now}
+                    linea_send = "SIP/2.0 200 OK\r\n\r\n"
             elif line[0] == 'INVITE':
                 user = line[6].split('=')[1]
                 if user in self.dicc.keys():
