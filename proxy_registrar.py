@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+"""Programa para un servidor proxy/registrar."""
 
 import sys
 from xml.sax import make_parser
@@ -13,20 +14,27 @@ import socket
 
 
 class PrHandler(ContentHandler):
+    """Class Handler."""
+
     def __init__(self):
+        """Inicializa los diccionarios."""
         self.diccionario= {}
         self.dicc_ua1xml = {'server': ['name', 'ip', 'puerto'],
                         'database': ['path', 'passwdpath'], 'log': ['path']}
     def startElement(self, name, attrs):
+        """Crea el diccionario con los valores del fichero xml."""
         diccionario = {}
         if name in self.dicc_ua1xml:
             for atributo in self.dicc_ua1xml[name]:
                 self.diccionario[name+'_'+atributo] = attrs.get(atributo, '')
 
     def get_tags(self):
+        """Devuelve el diccionario creado."""
         return self.diccionario
 
 class SIPRegisterHandler(socketserver.DatagramRequestHandler):
+    """Inicializo los diccionarios de usuarios, registrados y nonce."""
+    
     dicc_register = {}
     dicc_passw = {}
     nonce = {}
@@ -57,6 +65,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             json.dump(self.dicc_register, jsonfile, indent=4)
 
     def del_usuarios(self):
+        """Elimina usurio que se ha pasado su tiempo de expiracion."""
         user_del = []
         for user in self.dicc_register:
             if time.time() >= self.dicc_register[user]['expires']:
@@ -65,6 +74,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             del self.dicc_register[user]
 
     def envio_destino(self, ip, port, mensaje):
+        """Envio los mensajes al uaserver."""
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
             my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             my_socket.connect((ip,port))
@@ -81,12 +91,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             return data
 
     def envio_client(self,ip,port,linea):
+        """Envio mensajes al uaclient."""
         self.wfile.write(bytes(linea, 'utf-8'))
         print('mandamos al cliente: ', linea)
         log_send = linea.replace("\r\n", " ")
         log('Sent to ' + ip + ':' + port + ': ' + log_send, LOG_PATH)
 
     def user_not_found(self):
+        """Mensaje de usuario no encontrado."""
         linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
         log_send = linea_send.replace("\r\n", " ")
         log('Error: ' + log_send, LOG_PATH)
