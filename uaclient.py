@@ -1,21 +1,30 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+"""Programa que activa la parte del cliente."""
 
-from xml.sax import make_parser
-from xml.sax.handler import ContentHandler
 import sys
 import socket
 import time
 import hashlib
 import os
+from xml.sax import make_parser
+from xml.sax.handler import ContentHandler
+
 
 class Ua1Handler(ContentHandler):
+    """Class Handler."""
     def __init__(self):
-        self.diccionario= {}
+        """Inicializa el diccionario."""
+
+        """Crea otro diccionario con los valores del fichero xml."""
+        
+        self.diccionario = {}
         self.dicc_ua1xml = {'account': ['username', 'passwd'],
-                        'uaserver': ['ip', 'puerto'], 'rtpaudio': ['puerto'],
-                        'regproxy': ['ip', 'puerto'],
-                        'log': ['path'], 'audio': ['path']}
+                            'uaserver': ['ip', 'puerto'],
+                            'rtpaudio': ['puerto'],
+                            'regproxy': ['ip', 'puerto'],
+                            'log': ['path'], 'audio': ['path']}
+
     def startElement(self, name, attrs):
         diccionario = {}
         if name in self.dicc_ua1xml:
@@ -25,11 +34,13 @@ class Ua1Handler(ContentHandler):
     def get_tags(self):
         return self.diccionario
 
+
 def log(mensaje, log_path):
     fich = open(log_path, "a")
     fich.write(time.strftime('%Y%m%d%H%M%S '))
     fich.write(mensaje+"\r\n")
     fich.close()
+
 
 def password(passwd, nonce):
     m = hashlib.md5()
@@ -37,18 +48,14 @@ def password(passwd, nonce):
     m.update(bytes(nonce, 'utf-8'))
     return m.hexdigest()
 
-def rtp(ip,port, audio):
+
+def rtp(ip, port, audio):
     # aEjecutar es un string
     # con lo que se ha de ejecutar en la shell
-    aEjecutar = 'mp32rtp -i ' + ip  + ' -p ' + port + ' < ' + audio
+    aEjecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
     os.system(aEjecutar)
     return aEjecutar
 
-def enviar_proxy(linea):
-    my_socket.send(bytes(linea, 'utf-8'))
-    print('Enviamos al Proxy:\r\n', linea)
-    linea = linea.replace("\r\n", " ")
-    log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + linea, LOG_PATH)
 
 if __name__ == "__main__":
     try:
@@ -58,8 +65,8 @@ if __name__ == "__main__":
     except IndexError:
         sys.exit("Usage: python uaclient.py config method option")
 
-    parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
-    uHandler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
+    parser = make_parser()
+    uHandler = Ua1Handler()
     parser.setContentHandler(uHandler)
     try:
         parser.parse(open(CONFIG))
@@ -80,25 +87,26 @@ if __name__ == "__main__":
     log("Starting...", LOG_PATH)
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as my_socket:
         my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        my_socket.connect((IP_PROXY,PORT_PROXY))
+        my_socket.connect((IP_PROXY, PORT_PROXY))
 
         if METODO == 'REGISTER':
             LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                    ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
-            enviar_proxy(LINEA)
+                     ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
         elif METODO == 'INVITE':
             LINEA = (METODO + ' sip:' + OPCION + ' SIP/2.0\r\n' +
-                    'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
-                    'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
-                    'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
-            enviar_proxy(LINEA)
+                     'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
+                     'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
+                     'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
         elif METODO == 'BYE':
             LINEA = METODO + ' sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            enviar_proxy(LINEA)
-        elif METODO != ('REGISTER', 'INVITE', 'ACK', 'BYE'):
-            log("Error: SIP/2.0 405 Method Not Allowed", LOG_PATH)
         else:
-            log("Error: SIP/2.0 400 Bad Request", LOG_PATH)
+            LINEA = METODO + ' sip:' + OPCION + ' SIP/2.0\r\n\r\n'
+
+        my_socket.send(bytes(LINEA, 'utf-8'))
+        print('Enviamos al Proxy:\r\n', LINEA)
+        LINEA = LINEA.replace("\r\n", " ")
+        log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
+            LINEA, LOG_PATH)
 
         try:
             DATA = my_socket.recv(1024)
@@ -110,32 +118,41 @@ if __name__ == "__main__":
         RECB = DATA.decode('utf-8')
         print('Recibo del Proxy:\r\n', RECB)
         MENS = RECB.replace("\r\n", " ")
-        log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS, LOG_PATH)
+        log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
+            MENS, LOG_PATH)
 
         RECB_LIST = RECB.split()
         if RECB_LIST[1] == '401':
             NONCE_RECV = RECB_LIST[6].split('"')[1]
             NONCE = password(PASSWD, NONCE_RECV)
             LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
-                    ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
-                    'Authorization: Digest response="' + NONCE + '"' +
-                    '\r\n\r\n')
+                     ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n' +
+                     'Authorization: Digest response="' + NONCE + '"' +
+                     '\r\n\r\n')
             my_socket.send(bytes(LINEA, 'utf-8'))
             print('Enviamos al Proxy:\r\n', LINEA)
             LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
+                LINEA, LOG_PATH)
             DATA = my_socket.recv(1024)
             RECB = DATA.decode('utf-8')
             print('Recibo del Proxy:\r\n', RECB)
             MENS = RECB.replace("\r\n", " ")
-            log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + MENS, LOG_PATH)
-        elif RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and RECB_LIST[7] == '200':
+            log('Received from ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
+                MENS, LOG_PATH)
+        elif (RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and
+              RECB_LIST[7] == '200'):
             IP_SERVER = RECB_LIST[13]
             PORT_RTP = RECB_LIST[16]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            enviar_proxy(LINEA)
+            my_socket.send(bytes(LINEA, 'utf-8'))
+            print('Enviamos al Proxy:\r\n', LINEA)
+            LINEA = LINEA.replace("\r\n", " ")
+            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
+                LINEA, LOG_PATH)
             LINEA = rtp(IP_SERVER, PORT_RTP, AUDIO_PATH)
-            log('Sent to ' + IP_SERVER + ':' + PORT_RTP + ': ' + LINEA, LOG_PATH)
+            log('Sent to ' + IP_SERVER + ':' + PORT_RTP + ': ' +
+                LINEA, LOG_PATH)
         elif RECB_LIST[1] == '404':
             log("Error: " + RECB, LOG_PATH)
         elif RECB_LIST[1] == '405':
