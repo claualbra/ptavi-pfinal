@@ -92,7 +92,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             except ConnectionRefusedError:
                 log("Error: No server listening at " + ip +
                     " port " + str(port), LOG_PATH)
-                print('recibimos del servidor: ', data)
+            print('recibimos del servidor: ', data)
             return data
 
     def envio_client(self, ip, port, linea):
@@ -159,8 +159,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 if nonce == nonce_recv:
                     TimeExp = time.time() + int(line[4])
                     now = time.time()
-                    self.dicc_reg[user] = {'ip': ip_client,'expires': TimeExp,
-                                           'puerto': port,'registro': now}
+                    self.dicc_reg[user] = {'ip': ip_client, 'expires': TimeExp,
+                                           'puerto': port, 'registro': now}
                     linea_send = "SIP/2.0 200 OK\r\n\r\n"
                 else:
                     linea_send = "Error: contraseña incorrecta\r\n\r\n"
