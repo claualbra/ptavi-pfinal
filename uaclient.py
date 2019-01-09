@@ -44,6 +44,12 @@ def rtp(ip,port, audio):
     os.system(aEjecutar)
     return aEjecutar
 
+def enviar_proxy(linea):
+    my_socket.send(bytes(linea, 'utf-8'))
+    print('Enviamos al Proxy:\r\n', linea)
+    linea = linea.replace("\r\n", " ")
+    log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + linea, LOG_PATH)
+
 if __name__ == "__main__":
     try:
         CONFIG = sys.argv[1]
@@ -79,25 +85,16 @@ if __name__ == "__main__":
         if METODO == 'REGISTER':
             LINEA = (METODO + ' sip:' + ADRESS + ':' + PUERTO +
                     ' SIP/2.0\r\n' + 'Expires: ' + OPCION + '\r\n\r\n')
-            my_socket.send(bytes(LINEA, 'utf-8'))
-            print('Enviamos al Proxy:\r\n', LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            enviar_proxy(LINEA)
         elif METODO == 'INVITE':
             LINEA = (METODO + ' sip:' + OPCION + ' SIP/2.0\r\n' +
                     'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                     'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
                     'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
-            my_socket.send(bytes(LINEA, 'utf-8'))
-            print('Enviamos al Proxy:\r\n', LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            enviar_proxy(LINEA)
         elif METODO == 'BYE':
             LINEA = METODO + ' sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            my_socket.send(bytes(LINEA, 'utf-8'))
-            print('Enviamos al Proxy:\r\n', LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            enviar_proxy(LINEA)
         elif METODO != ('REGISTER', 'INVITE', 'ACK', 'BYE'):
             log("Error: SIP/2.0 405 Method Not Allowed", LOG_PATH)
         else:
@@ -136,10 +133,7 @@ if __name__ == "__main__":
             IP_SERVER = RECB_LIST[13]
             PORT_RTP = RECB_LIST[16]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
-            my_socket.send(bytes(LINEA, 'utf-8'))
-            print('Enviamos al Proxy:\r\n', LINEA)
-            LINEA = LINEA.replace("\r\n", " ")
-            log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + LINEA, LOG_PATH)
+            enviar_proxy(LINEA)
             LINEA = rtp(IP_SERVER, PORT_RTP, AUDIO_PATH)
             log('Sent to ' + IP_SERVER + ':' + PORT_RTP + ': ' + LINEA, LOG_PATH)
         elif RECB_LIST[1] == '404':
