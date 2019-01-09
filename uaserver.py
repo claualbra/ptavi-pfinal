@@ -7,9 +7,16 @@ from uaclient import Ua1Handler, log, rtp
 import sys
 import socketserver
 
+
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
     rtp = []
+
+    def enviar_proxy(self,linea):
+        self.wfile.write(bytes(linea, 'utf-8'))
+        print('Enviamos al Proxy:\r\n', linea)
+        linea = linea.replace("\r\n", " ")
+        log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + linea, LOG_PATH)
 
     def handle(self):
         """Escribe dirección y puerto del cliente."""
@@ -37,18 +44,21 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                         'Content-Type: application/sdp\r\n\r\n' + 'v=0\r\n' +
                         'o=' + ADRESS + ' ' + IP + '\r\n' + 's=misesion\r\n' +
                         'm=audio ' + str(PORT_AUDIO) + ' RTP' + '\r\n\r\n')
-                log_mensaje = mensaje.replace("\r\n", " ")
-                log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + log_mensaje, LOG_PATH)
+                self.enviar_proxy(mensaje)
             elif line[0] == 'ACK':
                 mensaje = rtp(self.rtp[0], self.rtp[1], AUDIO_PATH)
                 log('Sent to ' + self.rtp[0] + ':' + str(self.rtp[1]) + ': ' + mensaje, LOG_PATH)
             elif line[0] == 'BYE':
                 mensaje = 'SIP/2.0 200 OK\r\n\r\n'
-                log_mensaje = mensaje.replace("\r\n", " ")
-                log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + log_mensaje, LOG_PATH)
-
-            self.wfile.write(bytes(mensaje, 'utf-8'))
-            print('mandamos al cliente:\r\n', mensaje)
+                self.enviar_proxy(mensaje)
+            elif metodo != ('INVITE', 'ACK', 'BYE'):
+                self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
+                log("Error: SIP/2.0 405 Method Not Allowed", LOG_PATH)
+                print('metodo erroneo')
+            else:
+                self.wfile.write(b"SIP/2.0 400 Bad Request\r\n\r\n")
+                log("Error: SIP/2.0 400 Bad Request", LOG_PATH)
+                print('pregunta mal formulada')
 
 if __name__ == "__main__":
     try:
