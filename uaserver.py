@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
+"""Programa que activa la parte servidora."""
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
@@ -10,16 +11,18 @@ import socketserver
 
 class EchoHandler(socketserver.DatagramRequestHandler):
     """Echo server class."""
+
     rtp = []
 
     def enviar_proxy(self,linea):
+        """Envia mensajes al proxy."""
         self.wfile.write(bytes(linea, 'utf-8'))
         print('Enviamos al Proxy:\r\n', linea)
         linea = linea.replace("\r\n", " ")
         log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + linea, LOG_PATH)
 
     def handle(self):
-        """Escribe dirección y puerto del cliente."""
+        """Escribe dirección del cliente."""
         Ip_client = str(self.client_address[0])
 
         while 1:
@@ -66,8 +69,8 @@ if __name__ == "__main__":
     except IndexError:
         sys.exit("Usage: python uaserver.py config")
 
-    parser = make_parser() #lee linea a linea y busca etiquetas, generico para xml
-    u2Handler = Ua1Handler() #Hace cosas dependiendo de la etiqueta
+    parser = make_parser()
+    u2Handler = Ua1Handler()
     parser.setContentHandler(u2Handler)
     try:
         parser.parse(open(CONFIG))
