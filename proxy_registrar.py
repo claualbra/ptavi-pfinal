@@ -238,7 +238,10 @@ if __name__ == "__main__":
         sys.exit("Usage: python proxy_registrar.py config")
     CONFIGURACION = pHandler.get_tags()
 
-    IP = CONFIGURACION['server_ip']
+    if CONFIGURACION['server_ip'] == '':
+        IP = '127.0.0.1'
+    else:
+        IP = CONFIGURACION['server_ip']
     PORT_SERVER = int(CONFIGURACION['server_puerto'])
     PROXY = CONFIGURACION['server_name']
     LOG_PATH = CONFIGURACION['log_path']
