@@ -54,11 +54,9 @@ def rtp(ip, port, audio):
     """Manda Audio RTP."""
     # aEjecutar es un string
     # con lo que se ha de ejecutar en la shell
-    aejecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
-    cvlc = 'cvlc rtp://@' + ip + ':' + port + ' 2> /dev/null'
-    os.system(cvlc + '&')
-    os.system(aejecutar)
-    return aejecutar
+    aEjecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
+    os.system(aEjecutar)
+    return aEjecutar
 
 
 if __name__ == "__main__":
@@ -79,19 +77,13 @@ if __name__ == "__main__":
     CONFIGURACION = uHandler.get_tags()
 
     # Sacamos los datos del fichero xml
-    if CONFIGURACION['regproxy_ip'] == '':
-        IP_PROXY = '127.0.0.1'
-    else:
-        IP_PROXY = CONFIGURACION['regproxy_ip']
+    IP_PROXY = CONFIGURACION['regproxy_ip']
     PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
     ADRESS = CONFIGURACION['account_username']
     PUERTO = CONFIGURACION['uaserver_puerto']
     PASSWD = CONFIGURACION['account_passwd']
-    if CONFIGURACION['uaserver_ip'] == '':
-        IP = '127.0.0.1'
-    else:
-        IP = CONFIGURACION['uaserver_ip']
+    IP = CONFIGURACION['uaserver_ip']
     PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
     AUDIO_PATH = CONFIGURACION['audio_path']
     # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto.
