@@ -59,7 +59,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
     def del_usuarios(self):
         user_del = []
         for user in self.dicc_register:
-            if self.dicc_register[user]['registro'] >= self.dicc_register[user]['expires']:
+            if time.time() >= self.dicc_register[user]['expires']:
                 user_del.append(user)
         for user in user_del:
             del self.dicc_register[user]
@@ -76,13 +76,25 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             try:
                 data = my_socket.recv(1024).decode('utf-8')
             except ConnectionRefusedError:
-                log("Error: No server listening at " + SERVER_PROXY +
-                    " port " + str(PORT_PROXY), LOG_PATH)
+                log("Error: No server listening at " + ip +
+                    " port " + str(port), LOG_PATH)
             return data
+
+    def envio_client(self,ip,port,linea):
+        self.wfile.write(bytes(linea, 'utf-8'))
+        print('mandamos al cliente: ', linea)
+        log_send = linea.replace("\r\n", " ")
+        log('Sent to ' + ip + ':' + port + ': ' + log_send, LOG_PATH)
+
+    def user_not_found(self):
+        linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
+        log_send = linea_send.replace("\r\n", " ")
+        log('Error: ' + log_send, LOG_PATH)
+        self.wfile.write(bytes(linea_send, 'utf-8'))
 
     def handle(self):
         """Escribe dirección y puerto del cliente."""
-        Ip_client = str(self.client_address[0])
+        ip_client = str(self.client_address[0])
         self.json2register()
         self.json2password()
         self.del_usuarios()
@@ -100,7 +112,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 user = line[1].split(':')[1]
                 port = line[1].split(':')[2]
                 linea_recb = linea.replace("\r\n", " ")
-                log('Received from ' + Ip_client + ':' +
+                log('Received from ' + ip_client + ':' +
                     port + ': ' + linea_recb, LOG_PATH)
                 if user in self.dicc_passw.keys():
                     if user in self.dicc_register.keys():
@@ -114,17 +126,14 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                         linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
                                     'WWW Authenticate: Digest ' +
                                     'nonce="' + self.nonce[user] + '"\r\n\r\n')
-                    log_send = linea_send.replace("\r\n", " ")
-                    log('Sent to ' + Ip_client + ':' + port + ': ' + log_send, LOG_PATH)
+                    self.envio_client(ip_client, port, linea_send)
                 else:
-                    linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
-                    log_send = linea_send.replace("\r\n", " ")
-                    log('Error: ' + log_send, LOG_PATH)
+                    self.user_not_found()
             elif line[0] == 'REGISTER' and len(line) == 8:
                 user = line[1].split(':')[1]
                 port = line[1].split(':')[2]
                 linea_recb = linea.replace("\r\n", " ")
-                log('Received from ' + Ip_client + ':' +
+                log('Received from ' + ip_client + ':' +
                     port + ': ' + linea_recb, LOG_PATH)
                 pw = self.dicc_passw[user]['passwd']
                 nonce = password(pw, self.nonce[user])
@@ -132,48 +141,51 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 if nonce == nonce_recv:
                     TimeExp = time.time() + int(line[4])
                     now = time.time()
-                    self.dicc_register[user] = {'ip': Ip_client, 'expires': TimeExp,
+                    self.dicc_register[user] = {'ip': ip_client, 'expires': TimeExp,
                                         'puerto': port, 'registro': now}
                     linea_send = "SIP/2.0 200 OK\r\n\r\n"
-                    log_send = linea_send.replace("\r\n", " ")
-                    log('Sent to ' + Ip_client + ':' + port + ': ' + log_send, LOG_PATH)
+                self.envio_client(ip_client, port, linea_send)
             elif line[0] == 'INVITE':
                 user = line[6].split('=')[1]
-                port = self.dicc_register[user]['puerto']
-                linea_recb = linea.replace("\r\n", " ")
-                log('Received from ' + Ip_client + ':' +
-                    port + ': ' + linea_recb, LOG_PATH)
                 if user in self.dicc_register.keys():
+                    port = self.dicc_register[user]['puerto']
+                    linea_recb = linea.replace("\r\n", " ")
+                    log('Received from ' + ip_client + ':' +
+                        port + ': ' + linea_recb, LOG_PATH)
                     server = line[1].split(':')[1]
                     if server in self.dicc_register.keys():
                         ip_destino = self.dicc_register[server]['ip']
                         port_destino = int(self.dicc_register[server]['puerto'])
                         linea_send = self.envio_destino(ip_destino, port_destino, linea)
                         log_send = linea_send.replace("\r\n", " ")
-                        log('Received from ' + Ip_client + ':' +
+                        log('Received from ' + ip_client + ':' +
                             str(port_destino) + ': ' + log_send, LOG_PATH)
-                        log('Sent to ' + Ip_client + ':' + port + ': ' + log_send, LOG_PATH)
+                        self.envio_client(ip_client, port, linea_send)
                     else:
-                        linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
-                        log_send = linea_send.replace("\r\n", " ")
-                        log('Error: ' + log_send, LOG_PATH)
+                        self.user_not_found()
                 else:
-                    linea_send = 'SIP/2.0 404 User Not Found\r\n\r\n'
-                    log_send = linea_send.replace("\r\n", " ")
-                    log('Error: ' + log_send, LOG_PATH)
+                    self.user_not_found()
             elif line[0] == 'ACK':
                 server = line[1].split(':')[1]
-                ip_destino = self.dicc_register[server]['ip']
-                port_destino = int(self.dicc_register[server]['puerto'])
-                linea_send = self.envio_destino(ip_destino, port_destino, linea)
+                if server in self.dicc_register.keys():
+                    ip_destino = self.dicc_register[server]['ip']
+                    port_destino = int(self.dicc_register[server]['puerto'])
+                    audio = self.envio_destino(ip_destino, port_destino, linea)
+                else:
+                    self.user_not_found()
             elif line[0] == 'BYE':
                 server = line[1].split(':')[1]
-                ip_destino = self.dicc_register[server]['ip']
-                port_destino = int(self.dicc_register[server]['puerto'])
-                linea_send = self.envio_destino(ip_destino, port_destino, linea)
-
-            self.wfile.write(bytes(linea_send, 'utf-8'))
-            print('mandamos al cliente: ', linea_send)
+                if server in self.dicc_register.keys():
+                    ip_destino = self.dicc_register[server]['ip']
+                    port_destino = int(self.dicc_register[server]['puerto'])
+                    linea_send = self.envio_destino(ip_destino, port_destino, linea)
+                    log_send = linea_send.replace("\r\n", " ")
+                    log('Received from ' + ip_client + ':' +
+                        str(port_destino) + ': ' + log_send, LOG_PATH)
+                    self.wfile.write(bytes(linea_send, 'utf-8'))
+                    print('mandamos al cliente: ', linea_send)
+                else:
+                    self.user_not_found()
             self.register2json()
 
 if __name__ == "__main__":
