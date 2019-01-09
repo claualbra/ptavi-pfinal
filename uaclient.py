@@ -13,11 +13,9 @@ from xml.sax.handler import ContentHandler
 
 class Ua1Handler(ContentHandler):
     """Class Handler."""
-    def __init__(self):
-        """Inicializa el diccionario."""
 
-        """Crea otro diccionario con los valores del fichero xml."""
-        
+    def __init__(self):
+        """Inicializa los diccionarios."""
         self.diccionario = {}
         self.dicc_ua1xml = {'account': ['username', 'passwd'],
                             'uaserver': ['ip', 'puerto'],
@@ -26,16 +24,18 @@ class Ua1Handler(ContentHandler):
                             'log': ['path'], 'audio': ['path']}
 
     def startElement(self, name, attrs):
-        diccionario = {}
+        """Crea el diccionario con los valores del fichero xml."""
         if name in self.dicc_ua1xml:
             for atributo in self.dicc_ua1xml[name]:
                 self.diccionario[name+'_'+atributo] = attrs.get(atributo, '')
 
     def get_tags(self):
+        """Devuelve el diccionario creado."""
         return self.diccionario
 
 
 def log(mensaje, log_path):
+    """Abre un fichero log para poder escribir en él."""
     fich = open(log_path, "a")
     fich.write(time.strftime('%Y%m%d%H%M%S '))
     fich.write(mensaje+"\r\n")
@@ -43,6 +43,7 @@ def log(mensaje, log_path):
 
 
 def password(passwd, nonce):
+    """Devuelve el nonce de respuesta."""
     m = hashlib.md5()
     m.update(bytes(passwd, 'utf-8'))
     m.update(bytes(nonce, 'utf-8'))
@@ -50,6 +51,7 @@ def password(passwd, nonce):
 
 
 def rtp(ip, port, audio):
+    """Manda Audio RTP."""
     # aEjecutar es un string
     # con lo que se ha de ejecutar en la shell
     aEjecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
@@ -74,6 +76,7 @@ if __name__ == "__main__":
         sys.exit("Usage: python proxy_registrar.py config")
     CONFIGURACION = uHandler.get_tags()
 
+    # Sacamos los datos del fichero xml
     IP_PROXY = CONFIGURACION['regproxy_ip']
     PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
     LOG_PATH = CONFIGURACION['log_path']
