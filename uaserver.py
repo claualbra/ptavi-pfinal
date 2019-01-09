@@ -14,17 +14,17 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
     rtp = []
 
-    def enviar_proxy(self, linea):
+    def enviar_proxy(self, linea, ip, port):
         """Envia mensajes al proxy."""
         self.wfile.write(bytes(linea, 'utf-8'))
         print('Enviamos al Proxy:\r\n', linea)
         linea = linea.replace("\r\n", " ")
-        log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' + linea,
-            LOG_PATH)
+        log('Sent to ' + ip + ':' + port + ': ' + linea, LOG_PATH)
 
     def handle(self):
-        """Escribe dirección del cliente."""
-        Ip_client = str(self.client_address[0])
+        """Funcion handle."""
+        ip_client = str(self.client_address[0])
+        port_client = str(self.client_address[1])
 
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -49,14 +49,14 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                            'v=0\r\n' + 'o=' + ADRESS + ' ' + IP + '\r\n' +
                            's=misesion\r\n' + 'm=audio ' + str(PORT_AUDIO) +
                            ' RTP' + '\r\n\r\n')
-                self.enviar_proxy(mensaje)
+                self.enviar_proxy(mensaje, ip_client, port_client)
             elif line[0] == 'ACK':
                 mensaje = rtp(self.rtp[0], self.rtp[1], AUDIO_PATH)
                 log('Sent to ' + self.rtp[0] + ':' + str(self.rtp[1]) + ': ' +
                     mensaje, LOG_PATH)
             elif line[0] == 'BYE':
                 mensaje = 'SIP/2.0 200 OK\r\n\r\n'
-                self.enviar_proxy(mensaje)
+                self.enviar_proxy(mensaje, ip_client, port_client)
             elif metodo != ('INVITE', 'ACK', 'BYE'):
                 self.wfile.write(b"SIP/2.0 405 Method Not Allowed\r\n\r\n")
                 log("Error: SIP/2.0 405 Method Not Allowed", LOG_PATH)
@@ -84,8 +84,14 @@ if __name__ == "__main__":
 
     LOG_PATH = CONFIGURACION['log_path']
     PUERTO = int(CONFIGURACION['uaserver_puerto'])
-    IP = CONFIGURACION['uaserver_ip']
-    IP_PROXY = CONFIGURACION['regproxy_ip']
+    if CONFIGURACION['uaserver_ip'] == '':
+        IP = '127.0.0.1'
+    else:
+        IP = CONFIGURACION['uaserver_ip']
+    if CONFIGURACION['regproxy_ip'] == '':
+        IP_PROXY = '127.0.0.1'
+    else:
+        IP_PROXY = CONFIGURACION['regproxy_ip']
     PORT_PROXY = int(CONFIGURACION['regproxy_puerto'])
     ADRESS = CONFIGURACION['account_username']
     PORT_AUDIO = int(CONFIGURACION['rtpaudio_puerto'])
