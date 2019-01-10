@@ -40,8 +40,9 @@ class EchoHandler(socketserver.DatagramRequestHandler):
 
             line = linea.split()
             if line[0] == 'INVITE':
-                self.rtp.append(line[7])
+                print(line)
                 self.rtp.append(line[10])
+                self.rtp.append(line[13])
                 mensaje = ('SIP/2.0 100 Trying\r\n\r\n' +
                            'SIP/2.0 180 Ringing\r\n\r\n' +
                            'SIP/2.0 200 OK\r\n' +
