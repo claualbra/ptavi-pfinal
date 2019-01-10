@@ -106,7 +106,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                                  '\r\nVia: SIP/2.0/UDP ' + IP + ':' +
                                  str(PORT_SERVER) + '\r\n\r\n' + recb_proxy[3])
             except IndexError:
-                pass
+                env_proxy = data
             if env_proxy != '':
                 log_send = env_proxy.replace("\r\n", " ")
                 log('Received from ' + ip + ':' +
@@ -213,7 +213,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 if server in self.dicc_reg.keys():
                     ip_destino = self.dicc_reg[server]['ip']
                     port_destino = int(self.dicc_reg[server]['puerto'])
-                    audio = self.envio_destino(ip_destino, port_destino, linea)
+                    self.envio_destino(ip_destino, port_destino, linea)
                 else:
                     self.user_not_found()
             elif line[0] == 'BYE':
