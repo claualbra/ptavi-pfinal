@@ -1,0 +1,3 @@
+He añadido una cabecera cuando pasa por el proxy: "Via: SIP/2.0/UDP IP_PROXY:PORT_PROXY
+Para recuperar los usuarios he utilizado json2register del programa ptavi-p4
+he importado hilos para hacer los hilos de los clvc
