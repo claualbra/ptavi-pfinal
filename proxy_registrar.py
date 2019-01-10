@@ -116,7 +116,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             except IndexError:
                 pass
             if env_proxy != '':
-                print('hola')
                 log_send = env_proxy.replace("\r\n", " ")
                 log('Received from ' + ip + ':' +
                     str(port) + ': ' + log_send, LOG_PATH)
@@ -147,16 +146,23 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             print("El cliente nos manda\r\n", linea)
             line = linea.split()
             if line[0] == 'REGISTER' and len(line) == 5:
+                TimeExp = time.time() + int(line[4])
+                now = time.time()
                 user = line[1].split(':')[1]
                 linea_recb = linea.replace("\r\n", " ")
                 log('Received from ' + ip_client + ':' +
                     port_client + ': ' + linea_recb, LOG_PATH)
                 if user in self.dicc_passw.keys():
                     if user in self.dicc_reg.keys():
+                        port = line[1].split(':')[2]
                         if line[4] == '0':
                             del self.dicc_reg[user]
                             linea_send = "SIP/2.0 200 OK\r\n\r\n"
                         else:
+                            self.dicc_reg[user] = {'ip': ip_client,
+                                                   'expires': TimeExp,
+                                                   'puerto': port,
+                                                   'registro': now}
                             linea_send = "SIP/2.0 200 OK\r\n\r\n"
                     else:
                         self.nonce[user] = str(random.randint(0, 100000000))
@@ -168,6 +174,8 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 else:
                     self.user_not_found()
             elif line[0] == 'REGISTER' and len(line) == 8:
+                TimeExp = time.time() + int(line[4])
+                now = time.time()
                 user = line[1].split(':')[1]
                 port = line[1].split(':')[2]
                 linea_recb = linea.replace("\r\n", " ")
@@ -177,11 +185,13 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
                 nonce = password(pw, self.nonce[user])
                 nonce_recv = line[7].split('"')[1]
                 if nonce == nonce_recv:
-                    TimeExp = time.time() + int(line[4])
-                    now = time.time()
-                    self.dicc_reg[user] = {'ip': ip_client, 'expires': TimeExp,
-                                           'puerto': port, 'registro': now}
-                    linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                    if line[4] == '0':
+                        linea_send = "SIP/2.0 200 OK\r\n\r\n"
+                    else:
+                        self.dicc_reg[user] = {'ip': ip_client,
+                                               'expires': TimeExp,
+                                               'puerto': port, 'registro': now}
+                        linea_send = "SIP/2.0 200 OK\r\n\r\n"
                 else:
                     self.nonce[user] = str(random.randint(0, 100000000))
                     linea_send = ('SIP/2.0 401 Unauthorized\r\n' +
