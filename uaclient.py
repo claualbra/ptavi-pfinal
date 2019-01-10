@@ -55,10 +55,10 @@ def rtp(ip, port, audio):
     # aEjecutar es un string
     # con lo que se ha de ejecutar en la shell
     aejecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
-    cvlc = 'cvlc rtp://@' + ip + ':' + port + ' 2> /dev/null'
+    cvlc = 'cvlc rtp://@' + ip + ':' + port
     os.system(cvlc + '&')
     os.system(aejecutar)
-    return aejecutar
+    return cvlc + aejecutar
 
 
 if __name__ == "__main__":
@@ -153,14 +153,15 @@ if __name__ == "__main__":
                 MENS, LOG_PATH)
         elif (RECB_LIST[1] == '100' and RECB_LIST[4] == '180' and
               RECB_LIST[7] == '200'):
-            IP_SERVER = RECB_LIST[13]
-            PORT_RTP = RECB_LIST[16]
+            IP_SERVER = RECB_LIST[16]
+            PORT_RTP = RECB_LIST[19]
             LINEA = 'ACK sip:' + OPCION + ' SIP/2.0\r\n\r\n'
             my_socket.send(bytes(LINEA, 'utf-8'))
             print('Enviamos al Proxy:\r\n', LINEA)
             LINEA = LINEA.replace("\r\n", " ")
             log('Sent to ' + IP_PROXY + ':' + str(PORT_PROXY) + ': ' +
                 LINEA, LOG_PATH)
+            print(IP_SERVER)
             LINEA = rtp(IP_SERVER, PORT_RTP, AUDIO_PATH)
             log('Sent to ' + IP_SERVER + ':' + PORT_RTP + ': ' +
                 LINEA, LOG_PATH)
