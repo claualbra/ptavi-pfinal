@@ -7,6 +7,7 @@ import socket
 import time
 import hashlib
 import os
+import threading
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 
@@ -56,8 +57,10 @@ def rtp(ip, port, audio):
     # con lo que se ha de ejecutar en la shell
     aejecutar = 'mp32rtp -i ' + ip + ' -p ' + port + ' < ' + audio
     cvlc = 'cvlc rtp://@' + ip + ':' + port
-    os.system(cvlc + '&')
-    os.system(aejecutar)
+    hcvlc = threading.Thread(target=os.system(cvlc + '&'))
+    hmp3 = threading.Thread(target=os.system(aejecutar))
+    hcvlc.start()
+    hmp3.start()
     return cvlc + aejecutar
 
 
