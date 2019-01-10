@@ -67,14 +67,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         with open(REGISTRO, 'w') as jsonfile:
             json.dump(self.dicc_reg, jsonfile, indent=4)
 
-    def del_usuarios(self):
-        """Elimina usurio que se ha pasado su tiempo de expiracion."""
-        user_del = []
-        for user in self.dicc_reg:
-            if time.time() >= self.dicc_reg[user]['expires']:
-                user_del.append(user)
-        for user in user_del:
-            del self.dicc_reg[user]
 
     def envio_client(self, ip, port, linea):
         """Envio mensajes al uaclient."""
@@ -91,7 +83,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
 
             mens = mensaje.split('\r\n\r\n')
             mens_proxy = (mens[0] + '\r\nVia: SIP/2.0/UDP ' + IP + ':' +
-                         str(PORT_SERVER) + '\r\n\r\n' + mens[1])
+                          str(PORT_SERVER) + '\r\n\r\n' + mens[1])
             print('mandamos al servidor: ', mens_proxy)
             my_socket.send(bytes(mens_proxy, 'utf-8'))
             mens_proxy = mens_proxy.replace("\r\n", " ")
@@ -109,7 +101,7 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
             try:
                 if recb[7] == '200':
                     recb_proxy = data.split('\r\n\r\n')
-                    env_proxy = (recb_proxy[0] + '\r\n\r\n' +recb_proxy[1] +
+                    env_proxy = (recb_proxy[0] + '\r\n\r\n' + recb_proxy[1] +
                                  '\r\n\r\n' + recb_proxy[2] +
                                  '\r\nVia: SIP/2.0/UDP ' + IP + ':' +
                                  str(PORT_SERVER) + '\r\n\r\n' + recb_proxy[3])
@@ -134,7 +126,6 @@ class SIPRegisterHandler(socketserver.DatagramRequestHandler):
         port_client = str(self.client_address[1])
         self.json2register()
         self.json2password()
-        self.del_usuarios()
 
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
